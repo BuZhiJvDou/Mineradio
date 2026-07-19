@@ -625,3 +625,16 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **改动**：3 处精确 guard。
 
+
+### 已执行的小优化 (Opt-30~31)
+
+**优化**：
+- updateLyricStarRiver 深度睡眠早返回
+- (回顾) getAdaptiveRenderFps / shouldSkip 复用 now 减少 performance.now 调用
+
+**累计后台优化**：主 animate 早返回 + 大量 per-frame update/tick/particle/camera/lyrics 函数 guard + 几个 now 复用。
+
+**效果**：在 isDeepBackgroundMode 时，主循环和视觉更新基本零工作，保持低功耗。
+
+所有改动极小、精确、匹配风格。
+

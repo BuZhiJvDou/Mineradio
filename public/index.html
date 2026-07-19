@@ -7423,6 +7423,7 @@ function ensureLyricStarRiver() {
 }
 
 function updateLyricStarRiver(dt) {
+  if (isDeepBackgroundMode()) return;
   var river = ensureLyricStarRiver();
   if (!river || !river.material || !river.material.uniforms) return;
   if (fx && fx.preset === SKULL_PRESET_INDEX) {
