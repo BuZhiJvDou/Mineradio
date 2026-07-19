@@ -515,3 +515,14 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **改动**：1 行精确插入，位置在重度处理之前，风格与现有 background guard 一致。
 
+
+### 已执行的小优化 (Opt-11 改进)
+
+**优化**：将 `animate()` 中的深度睡眠早返回提前到 adaptive skip 之后（在 dt/sample/uniforms 之前）。
+
+**原因**：现在 deep sleep 时几乎立刻返回，跳过 dt 计算、sampleRenderPerf、uniforms 更新等额外工作。
+
+**改动**：将检查上移 + 清理了后续冗余检查。极小改动。
+
+**累计效果**：后台主循环开销进一步降低。
+

@@ -26643,6 +26643,7 @@ function animate() {
   requestAnimationFrame(animate);
   var now = performance.now();
   if (shouldSkipAdaptiveRenderFrame(now)) return;
+  if (isDeepBackgroundMode()) return;
   var dt = Math.min((now - prevTime) / 1000, 0.05);
   prevTime = now;
   sampleRenderPerf(now, dt);
@@ -26654,7 +26655,6 @@ function animate() {
     }
     return;
   }
-  if (isDeepBackgroundMode()) return;
 
   pointerParallax.x += (pointerTarget.x - pointerParallax.x) * 0.040;
   pointerParallax.y += (pointerTarget.y - pointerParallax.y) * 0.040;
