@@ -638,3 +638,16 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 所有改动极小、精确、匹配风格。
 
+
+### 已执行的小优化 (Opt-32~33)
+
+**优化**：
+- updateControlsChromeState 深度睡眠早返回
+- updateParticlePointerFrame 深度睡眠早返回
+
+**原因**：DOM/chrome 状态和粒子指针帧更新在后台无需执行。
+
+**改动**：2 处精确 guard。
+
+**总计**：后台 per-frame 工作已大幅裁剪（~25+ guards + now 复用）。
+

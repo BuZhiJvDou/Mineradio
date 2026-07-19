@@ -5318,6 +5318,7 @@ function revealBottomControls(delay) {
 }
 
 function updateControlsChromeState() {
+  if (isDeepBackgroundMode()) return;
   var bar = document.getElementById('bottom-bar');
   var handle = document.getElementById('bottom-handle');
   var active = !!(bar && bar.classList.contains('visible') && !bar.classList.contains('soft-hidden'));
@@ -5562,6 +5563,7 @@ function queueParticlePointerFrame(clientX, clientY) {
 }
 
 function updateParticlePointerFrame() {
+  if (isDeepBackgroundMode()) return;
   if (!particlePointerFrame.dirty) return;
   particlePointerFrame.dirty = false;
   if (particleLocalPointFromNdc(particlePointerFrame.ndcX, particlePointerFrame.ndcY, particlePointerLocalHit)) {
