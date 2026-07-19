@@ -677,3 +677,12 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 - Home 界面小打磨（例如加一个极简的欢迎提示或让 grid 更紧凑）。
 - 其他小 perf：减少更多不必要的 now() 调用或 RAF 工作。
 
+
+### 继续 (2026-07-19 批次)
+
+- home-grid 默认改为 repeat(3) 列（hero 移除后更好利用横向空间）
+- 彻底清理剩余 .home-hero CSS 引用
+- 轻量 "开始探索" 头部
+
+后台 guard 累计 41+，UI 占位已基本清理完毕。
+
