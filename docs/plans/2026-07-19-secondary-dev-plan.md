@@ -665,3 +665,15 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **原则符合**：极小删除（仅移除占位内容），未改动其他功能卡片。
 
+
+### 继续优化 + UI 清理 (2026-07-19 后续)
+
+- 清理了大量已移除的 .home-hero / .home-construction CSS（包括主规则和 media query 中的死代码），节省约 3KB+。
+- 更新 .empty-home-shell 布局为单列全宽，让卡片区更好地利用空间（移除 hero 后不再需要双列）。
+- 当前 deep guard 数量稳定在 41 处，后台性能反馈良好（最小化 CPU 基本 0%）。
+
+下一步可选：
+- 继续对剩余 update* 函数添加 guard（如果还有明显每帧调用的）。
+- Home 界面小打磨（例如加一个极简的欢迎提示或让 grid 更紧凑）。
+- 其他小 perf：减少更多不必要的 now() 调用或 RAF 工作。
+
