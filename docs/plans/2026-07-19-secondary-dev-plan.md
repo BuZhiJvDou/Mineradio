@@ -570,3 +570,16 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 继续执行中...
 
+
+### 已执行的小优化 (Opt-14~17)
+
+**优化**：
+- updateBeatCamera(dt) 深度睡眠早返回
+- updateCinemaDynamics 深度睡眠早返回
+- updateFreeCamera(dt) 深度睡眠早返回
+- updateStageLyrics3D(dt) 深度睡眠早返回
+
+**原因**：这些每帧或高频更新函数在后台无需运行，进一步减少 RAF 循环中的工作量。
+
+**改动**：4 处 1 行 guard，位置在函数入口，精确匹配现有模式。
+

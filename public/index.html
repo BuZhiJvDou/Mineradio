@@ -4011,6 +4011,7 @@ function toggleFreeCamera() {
   showToast('自由镜头: WASD 移动 · 鼠标转向 · K 回正');
 }
 function updateFreeCamera(dt) {
+  if (isDeepBackgroundMode()) return;
   if (!freeCamera) return;
   if (freeCamera.resetTween) {
     var tw = freeCamera.resetTween;
@@ -4114,6 +4115,7 @@ function easeBeatCamera(x) {
 }
 
 function updateCinemaDynamics(rawEnergy, rawLow) {
+  if (isDeepBackgroundMode()) return;
   var e = clamp01(rawEnergy || 0);
   var l = clamp01(rawLow || 0);
   var isDj = djMode.active;
@@ -4891,6 +4893,7 @@ function scheduleBeatCamera(beat, source) {
 }
 
 function updateBeatCamera(dt) {
+  if (isDeepBackgroundMode()) return;
   var t = audio ? audio.currentTime : uniforms.uTime.value;
   if (!audio || audio.paused) {
     beatCam.punch *= Math.pow(0.08, dt);
@@ -8978,6 +8981,7 @@ function clearStageLyrics() {
 }
 
 function updateStageLyrics3D(dt) {
+  if (isDeepBackgroundMode()) return;
   if (!stageLyrics.group) return;
   if (!fx.particleLyrics && !stageLyrics.current && (!stageLyrics.outgoing || !stageLyrics.outgoing.length)) return;
   if (!isFinite(stageLyrics.highBloom)) stageLyrics.highBloom = 0;
