@@ -388,3 +388,22 @@ git commit -m "feat(shelf): 3D 歌单架右键支持添加到当前队列 (minim
 
 **提交准备**：准备 commit 这个小优化。
 
+
+### 已执行的小优化 (Opt-2)
+
+**优化**：在深度睡眠（deep sleep / background release）模式下，`applyRendererPowerMode` 跳过调用 `getRenderPixelRatio()`，直接使用固定低值 0.5。
+
+**原因**：
+- `getRenderPixelRatio()` 会调用 `renderQualityProfile()` + 一些计算。
+- 在 deep 模式下画布只有 4x4，像素比对视觉没有任何影响，跳过它能减少后台时的无谓工作。
+
+**改动**：
+```js
+var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
+```
+
+**原则符合**：
+- 极小、精确修改
+- 不影响任何可见状态下的行为
+- 强化已有的 performanceBackground 机制
+
