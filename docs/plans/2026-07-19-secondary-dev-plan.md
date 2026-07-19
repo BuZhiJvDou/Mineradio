@@ -544,3 +544,29 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **改动**：1 行精确 guard。
 
+
+## 优化 Sprint 小结（截至本次继续）
+
+已完成 ~13 个极小精确的后台/深度睡眠性能优化，主要集中在：
+- 主 RAF 循环 (animate) 早返回，最大化跳过 dt/sample/spectrum/beat/render
+- 多个 tick 函数早返回
+- 时间戳复用 + 昂贵调用跳过
+- 桌面/歌词状态推送等次要路径
+
+所有改动：
+- 1 行左右
+- 使用现有 isDeepBackgroundMode() guard
+- 不改变前台行为或视觉
+- 已全部提交到 feature/secondary-dev
+- 计划文档持续更新
+
+性能影响：后台（隐藏/最小化/断开焦点）时主循环和视觉更新开销大幅降低，CPU/功耗友好，同时唤醒时立即恢复。
+
+下一步可继续的方向（可按需）：
+- 更多 now() 消除或 RAF 节流
+- 缓存/预加载路径优化
+- 非 deep 下的自适应质量微调
+- 其他模块小优化
+
+继续执行中...
+
