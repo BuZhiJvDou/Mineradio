@@ -88,6 +88,41 @@
 **Verification:**
 - 能画出简要模块关系图或列出关键函数名。
 
+## Phase 2 探索发现（2026-07-19 执行）
+
+**public/index.html（核心单文件应用）**：
+- Three.js (r128) 很早就加载，用于 canvas 视觉和 3D 元素。
+- 存在两套玻璃系统：
+  - 旧的 `--glass-*` 变量（线性渐变 + backdrop-filter blur）。
+  - 黄金版 "saved" 玻璃（来自 GLASS_SVG_TEXTURE.md）：使用 `--saved-panel-glass-*` + SVG filter `#mineradio-control-glass-filter`。
+- 通过 `html.control-glass-svg-ok` 类激活 SVG 高级玻璃，广泛应用于 bottom-bar、search、panels、home cards 等。
+- 关键 UI 结构：`#search-area`（peek 动画）、`#canvas-container`（Three.js 主画布）、`#bottom-bar`（玻璃 + 进度 + 控制）、`#playlist-panel`、home cards。
+- 3D 歌单架相关：`.shelf-hidden`、`.shelf-target`、playlist 细节页逻辑，最近版本大量修复静态/动态详情、播客开关、镜头绑定。
+
+**server.js**：
+- 本地 Node 服务（默认 3000 端口）。
+- 重度封装 NeteaseCloudMusicApi（search、login_qr_*、playlist、lyric、dj_* 等）。
+- 单独处理 QQ Cookie（.qq-cookie）。
+- 包含天气（Open-Meteo）、更新补丁系统、beatmap 缓存、`dj-analyzer.js` 集成。
+- Cookie 持久化 + 受保护 API 自动带 cookie。
+
+**CHANGELOG 近期重点（v1.1.0 / v1.1.1）**：
+- 安装器安全修复（P0）。
+- 3D 歌单架大量交互与显示优化。
+- 视觉预设、用户存档、性能策略（后台/画质）。
+- 更新可靠性改进。
+
+**Guardrails 确认**：
+- 必须先定位现有函数再修改 public/index.html。
+- 严禁破坏当前 SVG 玻璃参数（RGB displacement、scale、blur 等）。
+- 所有修改需在实际 Electron 环境验证。
+
+**状态**：Phase 2 已完成，理解基线已建立。
+
+---
+
+## 阶段 3：二次开发路线图（建议优先级）
+
 ---
 
 ## 阶段 3：二次开发路线图（建议优先级）
