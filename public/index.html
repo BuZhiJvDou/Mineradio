@@ -12410,6 +12410,7 @@ function tickPodcastDjBeatMap() {
 }
 
 function tickBeatMap() {
+  if (isDeepBackgroundMode()) return;
   if (djMode.active) return;
   if (!currentBeatMap || !audio || audio.paused) return;
   var t = audio.currentTime;

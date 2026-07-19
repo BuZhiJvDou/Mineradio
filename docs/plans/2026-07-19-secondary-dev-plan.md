@@ -416,3 +416,12 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **改动**：极小 1 行精确添加，匹配现有 background 优化风格。
 
+
+### 已执行的小优化 (Opt-4)
+
+**优化**：在 `tickBeatMap()` 顶部添加 `if (isDeepBackgroundMode()) return;`
+
+**原因**：节拍图 tick 在深度睡眠时无需执行，减少后台 CPU/GPU 工作。
+
+**改动**：1 行精确 guard，风格一致。
+
