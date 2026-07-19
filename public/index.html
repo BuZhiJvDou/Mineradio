@@ -9293,6 +9293,7 @@ function getLyricLineProgress(line, nextLine, now) {
 }
 
 function tickLyricsParticles() {
+  if (isDeepBackgroundMode()) return;
   if (!fx.particleLyrics) {
     if (stageLyrics.current || stageLyrics.currentText || (stageLyrics.outgoing && stageLyrics.outgoing.length)) clearStageLyrics();
     return;

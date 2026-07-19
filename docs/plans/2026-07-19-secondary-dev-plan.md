@@ -407,3 +407,12 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 - 不影响任何可见状态下的行为
 - 强化已有的 performanceBackground 机制
 
+
+### 已执行的小优化 (Opt-3)
+
+**优化**：在 `tickLyricsParticles()` 顶部添加 `if (isDeepBackgroundMode()) return;`
+
+**原因**：粒子歌词 tick 在后台深度睡眠时完全不需要运行，节省 RAF 回调中的工作。
+
+**改动**：极小 1 行精确添加，匹配现有 background 优化风格。
+
