@@ -21265,6 +21265,7 @@ function triggerPresetParticleTransition(fromPreset, toPreset) {
   }
 }
 function tickPresetTransition() {
+  if (isDeepBackgroundMode()) return;
   if (!presetTransition.active) return;
   var raw = (uniforms.uTime.value - presetTransition.start) / presetTransition.duration;
   var t = Math.max(0, Math.min(1, raw));
@@ -25131,6 +25132,7 @@ function drawHandSkeleton(lm, isPinch, openness, isFist) {
 
 // 每帧调用 — 应用惯性旋转 + handActive 衰减
 function tickGestureRotation(dt) {
+  if (isDeepBackgroundMode()) return;
   if (Math.abs(particleSpin.vx) > 0.0001 || Math.abs(particleSpin.vy) > 0.0001) {
     var rx = particleSpin.vx * dt;
     var ry = particleSpin.vy * dt;

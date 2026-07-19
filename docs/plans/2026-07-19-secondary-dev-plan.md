@@ -493,3 +493,14 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **优化 sprint 小结**：本次主动推进聚焦后台性能，添加多处 deep sleep early return + 时间戳复用 + 跳过昂贵计算，全部极小改动，符合精确、简单、匹配风格原则。
 
+
+### 已执行的小优化 (Opt-8,9)
+
+**优化**：
+- tickPresetTransition() 深度睡眠早返回
+- tickGestureRotation(dt) 深度睡眠早返回
+
+**原因**：预设过渡和手势旋转 tick 在后台无需执行。
+
+**当前后台优化小结**：多处 visual tick 早返回 + 时间戳复用 + 跳过计算，全部极小精确改动。
+
