@@ -3942,6 +3942,7 @@ function applyFreeCameraToCamera() {
   return true;
 }
 function updateFreeCameraHint() {
+  if (isDeepBackgroundMode()) return;
   var el = document.getElementById('free-camera-hint');
   if (el) el.classList.toggle('show', !!(freeCamera && freeCamera.active));
 }
@@ -5027,6 +5028,7 @@ function clearCenteredViewOffsets() {
 }
 
 function updateCamera() {
+  if (isDeepBackgroundMode()) return;
   if (applyFreeCameraToCamera()) return;
   if (orbit.recentering) {
     orbit.userTheta  += (orbit.baselineTheta - orbit.userTheta)  * 0.04;
@@ -5213,6 +5215,7 @@ var lastCamPunchAt = -10;
 var CAM_PUNCH_MIN_INTERVAL = 0.45;     // 秒
 var CAM_PUNCH_BEAT_THRESHOLD = 0.55;   // 必须够强才触发
 function updateCinema(dt) {
+  if (isDeepBackgroundMode()) return;
   cinemaT += dt;
   updateBeatCamera(dt);
   if (!fx.cinema) {

@@ -613,3 +613,15 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **改动**：小函数签名 + 调用更新，精确。
 
+
+### 已执行的小优化 (Opt-27~29)
+
+**优化**：
+- updateFreeCameraHint 深度睡眠早返回
+- updateCamera 深度睡眠早返回
+- updateCinema 深度睡眠早返回 (并调用已 guard 的 updateBeatCamera)
+
+**原因**：更多 camera/视觉更新函数在后台跳过。
+
+**改动**：3 处精确 guard。
+
