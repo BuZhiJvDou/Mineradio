@@ -77,6 +77,17 @@ const QQ_LOGIN_COOKIE_PRIORITY = [
   'ptcz',
   'RK',
 ];
+const QISHUI_LOGIN_COOKIE_PRIORITY = [
+  "sessionid",
+  "sessionid_ss",
+  "passport_csrf_token",
+  "passport_csrf_token_default",
+  "sid_tt",
+  "sid_guard",
+  "uid_tt",
+  "uid_tt_ss",
+  "csrf_session_id",
+];
 const NETEASE_LOGIN_COOKIE_PRIORITY = [
   'MUSIC_U',
   '__csrf',
@@ -323,6 +334,19 @@ function parseCookieHeader(cookieText) {
   return out;
 }
 
+function qishuiCookieHasLogin(cookieText) {
+  if (!cookieText) return false;
+  return /sessionid|passport_csrf_token/i.test(cookieText);
+}
+
+async function readQishuiLoginCookieHeader(cookieSession) {
+  const cookies = await cookieSession.cookies.get({});
+  return buildCookieHeaderFor(cookies, (obj) => {
+    const d = (obj.domain || "").toLowerCase();
+    return d.includes("douyin.com") || d.includes("music.douyin.com") || d === "douyin.com";
+  }, QISHUI_LOGIN_COOKIE_PRIORITY);
+}
+
 function qqCookieHasLogin(cookieText) {
   const obj = parseCookieHeader(cookieText);
   const rawUin = Number(obj.login_type) === 2
@@ -495,6 +519,54 @@ async function openNeteaseMusicLoginWindow(owner) {
 
     pollTimer = setInterval(checkCookies, 1200);
     loginWindow.loadURL(NETEASE_LOGIN_URL).catch((e) => finish({ ok: false, error: e.message }));
+  });
+}
+
+async function openQishuiMusicLoginWindow(owner) {
+  const cookieSession = session.fromPartition(QISHUI_LOGIN_PARTITION);
+  try {
+    const initialCookie = await readQishuiLoginCookieHeader(cookieSession);
+    if (qishuiCookieHasLogin(initialCookie)) return { ok: true, cookie: initialCookie, reused: true };
+  } catch (e) {}
+
+  return new Promise((resolve) => {
+    const loginWindow = new BrowserWindow({
+      width: 980,
+      height: 720,
+      parent: owner || mainWindow,
+      modal: false,
+      webPreferences: {
+        partition: QISHUI_LOGIN_PARTITION,
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true
+      }
+    });
+    loginWindow.setMenu(null);
+
+    let finished = false;
+    const finish = async (result) => {
+      if (finished) return;
+      finished = true;
+      try { loginWindow.destroy(); } catch (_) {}
+      resolve(result);
+    };
+
+    loginWindow.webContents.on("did-navigate", async (e, url) => {
+      if (/^https?:\/\/([^/]+\.)?douyin\.com/i.test(url) || /^https?:\/\/([^/]+\.)?music\.douyin\.com/i.test(url)) {
+        const cookie = await readQishuiLoginCookieHeader(cookieSession);
+        if (qishuiCookieHasLogin(cookie)) {
+          await finish({ ok: true, cookie });
+        }
+      }
+    });
+
+    loginWindow.on("closed", async () => {
+      const cookie = await readQishuiLoginCookieHeader(cookieSession);
+      await finish({ ok: qishuiCookieHasLogin(cookie), cookie });
+    });
+
+    loginWindow.loadURL(QISHUI_LOGIN_URL).catch((e) => finish({ ok: false, error: e.message }));
   });
 }
 
@@ -1170,6 +1242,23 @@ ipcMain.handle('netease-music-clear-login', async () => {
 
 ipcMain.handle('qq-music-open-login', async (event) => {
   return openQQMusicLoginWindow(getSenderWindow(event));
+});
+
+ipcMain.handle('qishui-music-open-login', async (event) => {
+  return openQishuiMusicLoginWindow(getSenderWindow(event));
+});
+
+ipcMain.handle('qq-music-open-login', async (event) => {
+  return openQQMusicLoginWindow(getSenderWindow(event));
+});
+
+ipcMain.handle('qq-music-clear-login', async () => {
+  return clearQQMusicLoginSession();
+});
+
+ipcMain.handle('qishui-music-clear-login', async () => {
+  try { await fs.promises.unlink(QISHUI_COOKIE_FILE); } catch (_) {}
+  return { ok: true };
 });
 
 ipcMain.handle('qq-music-clear-login', async () => {

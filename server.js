@@ -59,6 +59,7 @@ const HOST = process.env.HOST || '0.0.0.0';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 const COOKIE_FILE = process.env.COOKIE_FILE || path.join(__dirname, '.cookie');
 const QQ_COOKIE_FILE = process.env.QQ_COOKIE_FILE || path.join(__dirname, '.qq-cookie');
+const QISHUI_COOKIE_FILE = process.env.QISHUI_COOKIE_FILE || path.join(__dirname, '.qishui-cookie');
 const UPDATE_WORK_DIR = process.env.MINERADIO_UPDATE_DIR || path.join(__dirname, 'updates');
 const UPDATE_DOWNLOAD_DIR = process.env.MINERADIO_UPDATE_DOWNLOAD_DIR || path.join(UPDATE_WORK_DIR, 'downloads');
 const UPDATE_PATCH_BACKUP_DIR = process.env.MINERADIO_PATCH_BACKUP_DIR || path.join(UPDATE_WORK_DIR, 'backups', 'patches');
@@ -3553,6 +3554,84 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       console.error('[QQSongComments]', err);
       sendJSON(res, { provider: 'qq', error: err.message, comments: [] }, 500);
+    }
+    return;
+  }
+
+
+  // Qishui (汽水音乐) support - cookie based via Douyin web login
+  if (pn === '/api/qishui/login/status') {
+    try {
+      const cookie = await readQishuiCookie();
+      const loggedIn = qishuiCookieHasLogin(cookie);
+      sendJSON(res, { provider: 'qishui', loggedIn: loggedIn });
+    } catch (err) {
+      sendJSON(res, { provider: 'qishui', loggedIn: false, error: err.message });
+    }
+    return;
+  }
+
+  if (pn === '/api/qishui/recommend') {
+    try {
+      const cookie = await readQishuiCookie();
+      if (!qishuiCookieHasLogin(cookie)) {
+        sendJSON(res, { provider: 'qishui', dailySongs: [], loggedIn: false, error: 'login_required' });
+        return;
+      }
+      // Basic personalized rec using Douyin-style endpoint (community reverse)
+      const https = require('https');
+      const opts = {
+        hostname: 'music.douyin.com',
+        path: '/api/song/recommend?count=20&cursor=0',
+        headers: {
+          'Cookie': cookie,
+          'User-Agent': UA,
+          'Referer': 'https://music.douyin.com',
+          'Accept': 'application/json, text/plain, */*'
+        }
+      };
+      const recData = await new Promise((resolve) => {
+        const req = https.get(opts, (r) => {
+          let d = '';
+          r.on('data', (ch) => d += ch);
+          r.on('end', () => {
+            try { resolve(JSON.parse(d)); } catch(e) { resolve({}); }
+          });
+        });
+        req.on('error', () => resolve({}));
+      });
+      let songs = [];
+      const list = (recData && (recData.data || recData.list || recData.songs || []));
+      songs = list.map((it) => {
+        const s = it.song || it || {};
+        return {
+          id: s.id || s.song_id || s.vid || s.aid,
+          name: s.name || s.title || s.songName,
+          artist: (s.artists && s.artists[0] && s.artists[0].name) || s.author || s.artist || s.singer || '',
+          cover: s.cover || s.pic || s.cover_url || '',
+          source: 'qishui',
+          provider: 'qishui'
+        };
+      }).filter(s => s.id && s.name).slice(0, 20);
+      sendJSON(res, { provider: 'qishui', dailySongs: songs, loggedIn: true, updatedAt: Date.now() });
+    } catch (err) {
+      console.error('[QishuiRecommend]', err);
+      sendJSON(res, { provider: 'qishui', dailySongs: [], error: err.message }, 500);
+    }
+    return;
+  }
+
+  if (pn === '/api/qishui/song/url') {
+    try {
+      const cookie = await readQishuiCookie();
+      const id = url.searchParams.get('id') || url.searchParams.get('vid') || url.searchParams.get('songId');
+      if (!id) { sendJSON(res, { error: 'MISSING_ID' }, 400); return; }
+      // Basic: for many Qishui tracks the recommend already can include url, or use play endpoint
+      // For minimal playable, try a direct play URL pattern (may need header in client later)
+      const playUrl = `https://api.music.douyin.com/play/${id}`;
+      sendJSON(res, { url: playUrl, source: 'qishui', id, provider: 'qishui' });
+    } catch (err) {
+      sendJSON(res, { error: err.message }, 500);
     }
     return;
   }
