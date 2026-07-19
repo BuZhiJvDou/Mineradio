@@ -9134,6 +9134,7 @@ function updateStageLyrics3D(dt) {
     stageLyrics.group.quaternion.copy(lyricTargetQuat);
   }
   function tickMesh(mesh, isCurrent) {
+    if (isDeepBackgroundMode()) return false;
     if (!mesh) return false;
     mesh.userData.age += dt;
     var a = Math.min(1, mesh.userData.age / (isCurrent ? 0.52 : 0.38));

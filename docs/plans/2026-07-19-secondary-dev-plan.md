@@ -425,3 +425,18 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **改动**：1 行精确 guard，风格一致。
 
+
+### 已执行的小优化 (Opt-5)
+
+**优化**：在 `tickMesh()` 顶部添加 `if (isDeepBackgroundMode()) return false;`
+
+**原因**：网格 tick（歌词/粒子相关视觉）在深度睡眠时无需执行。
+
+**改动**：1 行精确 guard。
+
+**当前优化小计**：
+- 减少 performance.now() 调用
+- Deep sleep 跳过 getRenderPixelRatio 等
+- 多个 tick 函数早返回
+- 所有改动极小、精确、风格一致
+
