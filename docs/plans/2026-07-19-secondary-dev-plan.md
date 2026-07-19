@@ -453,3 +453,43 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 - 多个 tick (lyrics particles, beat map, mesh, shelf hover) 早返回
 - 所有改动 1 行级别，精确、安全、风格一致
 
+
+## Optimization Sprint 总结（本次主动推进）
+
+**日期范围**：2026-07-19
+
+**重点方向**：
+- 后台/深度睡眠（deep sleep / background release）路径优化
+- 减少不必要计算（performance.now()、getRenderPixelRatio、视觉 tick）
+- 强化现有 performanceBackground / isDeepBackgroundMode 机制
+
+**已完成的小优化（精确、极小改动）**：
+1. trimRuntimeCaches 接收 now 参数，复用时间戳
+2. applyRendererPowerMode deep 模式跳过 getRenderPixelRatio
+3. collectRuntimePerfSnapshot 等在 deep 时跳过昂贵 renderer 统计
+4. tickLyricsParticles / tickBeatMap / tickMesh / tickShelfHoverCue 添加 deep 早返回
+
+**原则遵循**：
+- 每次只改 1 行左右
+- 匹配现有 background guard 风格
+- 不影响前台视觉、交互、3D 歌单架等核心体验
+- 全部提交到 feature/secondary-dev
+
+**下一步建议方向**（可继续）：
+- 继续寻找 hot path 中的冗余计算
+- RAF scheduling 在后台的进一步节流
+- 其他模块的小型性能或代码健康改进
+
+已更新到本计划末尾。
+
+
+### 已执行的小优化 (Opt-7)
+
+**优化**：在 `tickPodcastDjBeatMap()` 顶部添加 `if (isDeepBackgroundMode()) return;`
+
+**原因**：DJ 播客节拍图 tick 在后台无需运行。
+
+**改动**：1 行精确。
+
+**优化 sprint 小结**：本次主动推进聚焦后台性能，添加多处 deep sleep early return + 时间戳复用 + 跳过昂贵计算，全部极小改动，符合精确、简单、匹配风格原则。
+

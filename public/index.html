@@ -12392,6 +12392,7 @@ function syncPodcastDjMapCursor(t, preserveVisualState) {
 }
 
 function tickPodcastDjBeatMap() {
+  if (isDeepBackgroundMode()) return;
   if (!djMode.active || !currentDjBeatMap || !audio || audio.paused) return;
   var t = audio.currentTime || 0;
   if (currentDjBeatMap.partialUntilSec && t > currentDjBeatMap.partialUntilSec + beatCam.lookahead) return;
