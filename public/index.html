@@ -1895,8 +1895,8 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
 <!-- 空场 Home -->
 <section id="empty-home" aria-label="Mineradio home">
   <div class="empty-home-shell">
-    <div class="home-section-head" style="grid-column:1;margin-bottom:4px;">
-      <div class="home-section-title" style="font-size:13px;opacity:.6;">开始探索</div>
+    <div class="home-section-head">
+      <div class="home-section-title" style="font-size:13px;opacity:.55;">开始探索</div>
     </div>
 
     <div class="home-grid">
@@ -2932,6 +2932,7 @@ function shouldSuppressFullscreenDiyPeek() {
   return !!(visualGuideActive || fxPanelOpen || hotkeyOpen);
 }
 function updateFullscreenDiyPeekFromPointer(x, y) {
+  if (isDeepBackgroundMode()) return;
   var isFullscreen = !!(desktopRuntimeState.fullscreen || desktopFullscreenActive || document.fullscreenElement || document.body.classList.contains('desktop-fullscreen'));
   if (!isFullscreen || immersiveMode || shouldSuppressFullscreenDiyPeek()) {
     document.body.classList.remove('fullscreen-diy-peek');
@@ -3637,6 +3638,7 @@ function applyRendererPowerMode() {
   }
 }
 function updateDesktopRuntimeState(state) {
+  if (isDeepBackgroundMode()) return;
   state = state || {};
   var wasFullscreen = desktopRuntimeState.fullscreen;
   var wasDeep = isDeepBackgroundMode();

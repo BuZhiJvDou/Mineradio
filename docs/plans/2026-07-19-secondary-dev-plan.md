@@ -686,3 +686,10 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 后台 guard 累计 41+，UI 占位已基本清理完毕。
 
+
+### 继续 (2026-07-19 额外小步)
+
+- 为 updateFullscreenDiyPeekFromPointer 和 updateDesktopRuntimeState 添加 deep early return（累计 guard 43）。
+- 清理 header 内联样式，复用现有 .home-section-head / .home-section-title 类。
+- home 现在是干净的 3 列网格 + 轻提示，无大占位。
+
