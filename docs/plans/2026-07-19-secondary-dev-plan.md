@@ -535,3 +535,12 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **改动**：1 处精确参数传递。
 
+
+### 已执行的小优化 (Opt-13)
+
+**优化**：pushDesktopLyricsState 顶部添加 `if (isDeepBackgroundMode()) return;`
+
+**原因**：跳过桌面歌词状态推送的 now 计算、payload 构建和 API 调用在后台。
+
+**改动**：1 行精确 guard。
+

@@ -26340,6 +26340,7 @@ function wallpaperPayload() {
   };
 }
 function pushDesktopLyricsState(force) {
+  if (isDeepBackgroundMode()) return;
   var api = getDesktopWindowApi();
   if (!api || typeof api.updateDesktopLyrics !== 'function') return;
   var now = performance.now();
