@@ -2896,6 +2896,7 @@ function toggleUserCapsuleAutoHide(e) {
   showToast(userCapsuleAutoHide ? '账号胶囊已自动隐藏' : '账号胶囊已固定显示');
 }
 function updateUserCapsuleAutoHideFromPointer(x, y) {
+  if (isDeepBackgroundMode()) return;
   if (!userCapsuleAutoHide || immersiveMode) {
     document.body.classList.remove('user-capsule-peek');
     return;
@@ -2928,6 +2929,7 @@ function toggleFxFabAutoHide(e) {
   showToast(fxFabAutoHide ? '视觉控制台按钮已自动隐藏' : '视觉控制台按钮已固定显示');
 }
 function updateFxFabAutoHideFromPointer(x, y) {
+  if (isDeepBackgroundMode()) return;
   if (!fxFabAutoHide || !diyPlayerMode || immersiveMode) {
     document.body.classList.remove('fx-fab-peek');
     fxFabAutoHideRevealArmed = true;
@@ -4191,6 +4193,7 @@ function resetCinemaTrackProfile(song) {
 }
 
 function updateCinemaTrackProfile(sample) {
+  if (isDeepBackgroundMode()) return;
   if (!sample) return;
   var p = cinemaTrackProfile;
   p.frames++;

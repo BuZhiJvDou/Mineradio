@@ -592,3 +592,15 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **累计**：主循环 + 大量 per-frame update/tick 函数都有 deep early return。
 
+
+### 已执行的小优化 (Opt-22~25)
+
+**优化**：
+- updateCinemaTrackProfile 深度睡眠早返回
+- updateUserCapsuleAutoHideFromPointer 深度睡眠早返回
+- updateFxFabAutoHideFromPointer 深度睡眠早返回
+
+**原因**：这些指针/状态更新函数在后台无需执行，进一步减少每帧开销。
+
+**改动**：3 处精确 1 行 guard。
+
