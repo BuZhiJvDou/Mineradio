@@ -3616,7 +3616,7 @@ function collectRuntimePerfSnapshot(now) {
   };
 }
 window.__mineradioPerfSnapshot = collectRuntimePerfSnapshot;
-function trimRuntimeCaches(reason, aggressive) {
+function trimRuntimeCaches(reason, aggressive, now) {
   var protectedCovers = collectProtectedCoverUrls();
   var protectedBeats = collectProtectedBeatMapKeys();
   var dropped = 0;
@@ -3629,7 +3629,7 @@ function trimRuntimeCaches(reason, aggressive) {
   if (aggressive && typeof renderer !== 'undefined' && renderer && renderer.renderLists && renderer.renderLists.dispose) {
     try { renderer.renderLists.dispose(); } catch (e) {}
   }
-  runtimePerfState.lastCacheTrimAt = performance.now();
+  runtimePerfState.lastCacheTrimAt = now || performance.now();
   runtimePerfState.cacheTrimCount += 1;
   runtimePerfState.lastCacheTrimReason = reason || (aggressive ? 'deep' : 'active');
   collectRuntimePerfSnapshot(runtimePerfState.lastCacheTrimAt);
@@ -3637,7 +3637,7 @@ function trimRuntimeCaches(reason, aggressive) {
 }
 function trimVisualCachesForBackground() {
   if (!isDeepBackgroundMode()) return;
-  trimRuntimeCaches('deep-background', true);
+  trimRuntimeCaches('deep-background', true, performance.now());
 }
 function scheduleBackgroundCacheTrim() {
   if (!isDeepBackgroundMode()) return;
@@ -3653,7 +3653,7 @@ function maybeTrimRuntimeCaches(now) {
   var gap = deep ? (isBackgroundReleaseMode() ? 3600 : 7000) : 45000;
   if (!deep && now < 30000) return;
   if (now - runtimePerfState.lastCacheTrimAt < gap) return;
-  trimRuntimeCaches(deep ? (isBackgroundReleaseMode() ? 'release-frame' : 'deep-frame') : 'active-frame', deep);
+  trimRuntimeCaches(deep ? (isBackgroundReleaseMode() ? "release-frame" : "deep-frame") : "active-frame", deep, now);
 }
 function applyRendererPowerMode() {
   if (typeof renderer === 'undefined' || !renderer) return;
@@ -21436,7 +21436,7 @@ function setPerformanceBackgroundMode(mode, silent) {
   updateRenderPowerClasses();
   applyRendererPowerMode();
   if (next === 'keep') recoverVisualsAfterBackground('performance-background-keep');
-  else if (next === 'release' && isDeepBackgroundMode()) trimRuntimeCaches('performance-release', true);
+  else if (next === 'release' && isDeepBackgroundMode()) trimRuntimeCaches('performance-release', true, performance.now());
   if (!silent) {
     showToast(next === 'keep' ? '后台策略: 保持运行' : (next === 'release' ? '后台策略: 停止并释放' : '后台策略: 自动优化'));
   }

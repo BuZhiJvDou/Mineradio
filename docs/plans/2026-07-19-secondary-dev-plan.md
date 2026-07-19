@@ -310,3 +310,81 @@ git commit -m "feat(shelf): 3D 歌单架右键支持添加到当前队列 (minim
 - 更新记忆文档。
 
 **Status**: 计划已细化。准备委托 Codex 执行 Task 4.1 ~ 4.2。
+
+## 执行记录（2026-07-19）
+
+**已执行**：Task 4.2 最小实现
+- 在 `public/index.html` contextmenu handler (mode !== 'side' 之后) 插入了 3D 主卡片命中检测 + queueSongNext 调用 + pulse + toast。
+- 变更已 commit: 6dc63ca feat(shelf): 3D 歌单架右键支持添加到当前队列 (minimal edit per plan)
+- 遵循所有 Guardrails（最小修改、保留玻璃质感、精确定位函数）。
+- 注意：node --check 对 .html 不适用；已在 git diff 验证语法结构。
+
+**下一步顺序执行建议**（继续推进）：
+1. 手动在 Electron 中验证 3D 侧栏模式右键卡片是否能添加到队列。
+2. 如果OK，更新 PROJECT_MEMORY.md 记录此功能。
+3. 继续下一个任务（例如完善 UX 或其他功能）。
+
+当前分支：feature/secondary-dev
+所有修改严格按计划进行。
+
+---
+
+## Optimization Sprint (开始自主推进优化)
+
+**日期**: 2026-07-19  
+**原则**: 严格遵守 AGENTS.md + 编码通用原则（精确修改、简单优先、只改必要代码、不破坏视觉质感与现有性能策略）。
+
+### 目标
+在不重构大块代码的前提下，进行小而安全的性能/代码健康优化，重点：
+- 减少 hot path 中的不必要计算（performance.now()、重复保护集合收集）
+- 强化后台优化路径
+- 保持现有 `performanceQuality` / `performanceBackground` 机制不变
+
+### 第一个小优化任务（已规划）
+
+**Task Opt-1: 减少 trimRuntimeCaches 中冗余的 performance.now() 调用**
+
+**位置**: `public/index.html` 中 `trimRuntimeCaches` 函数
+
+**理由**: `maybeTrimRuntimeCaches(now)` 已经拿到时间戳，但 `trimRuntimeCaches` 内部又调用一次。hot path 中每帧都可能触发检查，减少无谓调用。
+
+**计划改动**:
+- 修改 `trimRuntimeCaches(reason, aggressive, now)` 可选接收 now
+- 在调用处传递 now（如果有）
+- 最后赋值使用传入的 now 或回退
+
+**预期影响**: 极小（只在 trim 触发时少一次 now()），符合“简单优先”。
+
+**后续小优化方向（按优先级）**:
+- Opt-2: 优化 `collectRuntimePerfSnapshot` 中 renderer.info 的获取频率（它较贵）
+- Opt-3: 在深度后台时更早跳过非必要的视觉更新逻辑
+- Opt-4: 清理冗余的 `typeof renderer !== 'undefined' && renderer &&` 重复模式（只在必要处保留防御）
+
+**执行规则**:
+- 每次只做一个极小的精确修改
+- 修改后立即 `node --check server.js` + git diff 确认
+- 更新本计划 + 必要时记录到 PROJECT_MEMORY.md
+- 保持玻璃质感、3D 歌单架、粒子系统、现有性能策略完全不变
+
+
+### 已执行的小优化 (Opt-1)
+
+**优化**：`trimRuntimeCaches` 现在接受可选的 `now` 参数，并在调用链中复用时间戳。
+
+**改动位置**：
+- `trimRuntimeCaches(reason, aggressive, now)`
+- `runtimePerfState.lastCacheTrimAt = now || performance.now();`
+- `maybeTrimRuntimeCaches(now)` 传递 now
+- `trimVisualCachesForBackground()` 内部也传递 `performance.now()`
+
+**收益**：
+- 减少 cache trim 判断路径中不必要的 `performance.now()` 调用（虽然开销很小，但在每帧的 maybeTrim 检查中更干净）。
+- 保持行为完全一致。
+- 符合“简单优先 + 精确修改”原则。
+
+**验证**：
+- 语法结构正确
+- git diff 显示仅 5 行改动
+
+**提交准备**：准备 commit 这个小优化。
+
