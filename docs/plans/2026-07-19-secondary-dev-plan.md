@@ -604,3 +604,12 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **改动**：3 处精确 1 行 guard。
 
+
+### 已执行的小优化 (Opt-26)
+
+**优化**：getAdaptiveRenderFps 接受 now 参数并传递给 isRenderInteractionActive(now)；shouldSkipAdaptiveRenderFrame 调用时传 now。
+
+**原因**：在自适应帧率判断（每帧执行）中复用 animate 的 now，避免额外 performance.now() 调用。
+
+**改动**：小函数签名 + 调用更新，精确。
+

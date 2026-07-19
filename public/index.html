@@ -26610,11 +26610,11 @@ var splashWarmRenderLast = 0;
 function isMainSceneCoveredBySplash() {
   return document.body.classList.contains('splash-active') && !document.body.classList.contains('splash-revealing');
 }
-function getAdaptiveRenderFps() {
+function getAdaptiveRenderFps(now) {
   if (isDeepBackgroundMode()) return 1;
   if (RENDER_VISIBLE_VSYNC) return 0;
   var tier = (typeof getRenderLoadTier === 'function') ? getRenderLoadTier() : 0;
-  if (typeof isRenderInteractionActive === 'function' && isRenderInteractionActive()) {
+  if (typeof isRenderInteractionActive === 'function' && isRenderInteractionActive(now)) {
     if (tier >= 2) return RENDER_INTERACTION_HUGE_FPS;
     if (tier >= 1) return RENDER_INTERACTION_LARGE_FPS;
     return RENDER_INTERACTION_FPS;
@@ -26624,7 +26624,7 @@ function getAdaptiveRenderFps() {
   return RENDER_ACTIVE_FPS;
 }
 function shouldSkipAdaptiveRenderFrame(now) {
-  var fps = getAdaptiveRenderFps();
+  var fps = getAdaptiveRenderFps(now);
   renderPerfState.mode = fps ? (fps + 'fps') : 'vsync';
   if (!fps) {
     renderPerfState.lastRenderAt = now;
