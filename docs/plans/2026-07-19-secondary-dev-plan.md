@@ -651,3 +651,17 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **总计**：后台 per-frame 工作已大幅裁剪（~25+ guards + now 复用）。
 
+
+### UI 清理 (2026-07-19)
+
+**问题**：空场 Home 左侧大块 “🚧此处施工，敬请期待🚧” 占位区域（.home-hero + home-construction-inner）。
+
+**处理**：
+- 完全移除 `<div class="home-hero">` 及其内部施工标题和控制台按钮。
+- 清理多余空行和 `home-construction-inner` 类引用。
+- 现在左侧大片占位消失，`.home-grid` 直接占据空间，现有卡片（Library / Daily / Private / Continue / Profile / 常听歌手）更突出。
+
+**效果**：Home 进入后左侧不再有大片施工提示，界面更干净。CSS 中旧 hero 样式保留（不影响运行，后续可进一步精简）。
+
+**原则符合**：极小删除（仅移除占位内容），未改动其他功能卡片。
+
