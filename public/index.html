@@ -14943,6 +14943,21 @@ renderer.domElement.addEventListener('contextmenu', function(e){
     mode = 'side';
   }
   if (mode !== 'side') return;
+
+  // 3D 歌单架主卡片右键添加到当前队列 (minimal, 遵循 AGENTS.md + 计划)
+  var rc = raycasterFromPointerEvent(e);
+  var hit = pointerCardHit(rc, e);
+  if (hit && hit.card && hit.card.item) {
+    var item = hit.card.item;
+    var songToQueue = item.song || item.firstSong || (item.tracks && item.tracks[0]);
+    if (songToQueue && typeof queueSongNext === 'function') {
+      queueSongNext(songToQueue);
+      if (typeof pulseCard === 'function' && hit.card) pulseCard(hit.card, 0.8);
+      if (typeof showToast === 'function') showToast('已添加到下一首: ' + (songToQueue.name || item.title || ''));
+      return;
+    }
+  }
+
   if (shelfManager.hasOpenContent && shelfManager.hasOpenContent()) {
     var rc = raycasterFromPointerEvent(e);
     var cl = shelfManager.getContentList && shelfManager.getContentList();

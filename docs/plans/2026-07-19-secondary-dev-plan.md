@@ -228,3 +228,85 @@ git commit -m "feat(3d): 在 3D 歌单架增加快速添加到播放列表功能
 - 是否现在细化第一个功能计划并开始执行（可委托 Codex）？
 
 直接回复“继续”或指定功能即可。
+### 第一个具体功能：3D 歌单架右键 “添加到当前播放队列”
+
+**Goal**: 在 3D 歌单架的卡片上右键点击时，增加选项或直接支持将该歌单/歌曲添加到当前播放队列（使用已有的 queueSongNext / queueSong 机制），不破坏现有玻璃质感、raycast、点击逻辑和上下文菜单行为。
+
+**Exact Locations** (based on exploration):
+- Contextmenu handler: ~line 14933 in public/index.html
+- shelfManager: makeShelfManager() ~line 12750+, instantiated ~13846
+- raycastCards & pointerCardHit: ~13768, ~14812
+- queue functions: queueSong ~18053, queueSongNext ~18082, queueDetailSongNext ~18090
+- 3D shelf UI controls: ~2181-2204 (shelf-seg)
+- Three.js scene: ~3719+
+
+**Constraints (must follow)**:
+- 仅增量修改，不要重写大段视觉系统。
+- 保留所有 control-glass-svg-ok 玻璃效果。
+- 使用已有 queueSongNext 机制。
+- 在 Electron 环境下验证（npm start）。
+- 右键菜单或直接行为需有视觉反馈 (pulseCard 或 showToast)。
+
+### Task 4.1: 定位并记录当前 contextmenu 对 3D 卡片的处理
+
+**Objective:** 精确找到右键命中卡片时的代码路径。
+
+**Files:**
+- Read/Modify: `public/index.html` (lines ~14933-14980 for contextmenu, ~14800-14870 for pointerCardHit and click)
+
+**Steps:**
+1. 阅读 contextmenu listener。
+2. 阅读 pointerCardHit 和 raycastCards。
+3. 记录当前分支 (mode === 'side' && hasOpenContent vs 主卡片)。
+
+**Verification:**
+```bash
+node --check public/index.html
+```
+
+### Task 4.2: 扩展 contextmenu 在主卡片命中时调用 queue
+
+**Objective:** 当右键命中一个 playlist 卡片时，尝试将该卡片的歌曲或代表歌曲加入队列。
+
+**Files:**
+- Modify: `public/index.html` (~14933 contextmenu block)
+
+**Step 1 (minimal change):**
+在 contextmenu handler 中， 在 `if (mode !== 'side') return;` 之后，添加对主卡片命中的处理：
+
+```js
+var rc = raycasterFromPointerEvent(e);
+var hit = pointerCardHit(rc, e);
+if (hit && hit.card && hit.card.item) {
+  var item = hit.card.item;
+  if (item.type === 'playlist' || item.songs) {
+    // 简单处理：如果有代表歌曲，queue；否则提示
+    if (item.song || item.firstSong) {
+      queueSongNext(item.song || item.firstSong);
+      if (typeof pulseCard === 'function') pulseCard(hit.card, 0.8);
+      showToast('已添加到下一首: ' + (item.title || item.name));
+    } else {
+      // 触发加载或使用现有逻辑
+      shelfManager.openContent(hit.card.index); // 或其他
+    }
+    return;
+  }
+}
+```
+
+**Step 2:** 测试点击和右键不冲突。
+
+**Verification:**
+- 手动在 3D 侧栏模式右键卡片。
+- 检查队列是否更新。
+- 玻璃效果、动画、raycast 正常。
+
+**Commit:**
+git commit -m "feat(shelf): 3D 歌单架右键支持添加到当前队列 (minimal, guardrail compliant)"
+
+### Task 4.3: 改进为更好的 UX (可选后续)
+- 添加简单的右键菜单或直接行为。
+- 支持多首或整个歌单。
+- 更新记忆文档。
+
+**Status**: 计划已细化。准备委托 Codex 执行 Task 4.1 ~ 4.2。
