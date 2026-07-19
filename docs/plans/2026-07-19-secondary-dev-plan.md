@@ -583,3 +583,12 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **改动**：4 处 1 行 guard，位置在函数入口，精确匹配现有模式。
 
+
+### 已执行的小优化 (Opt-18~21)
+
+**优化**：
+- updateSkullParticleLayer 深度睡眠早返回
+- (之前) updateBeatCamera, updateCinemaDynamics, updateFreeCamera, updateStageLyrics3D
+
+**累计**：主循环 + 大量 per-frame update/tick 函数都有 deep early return。
+

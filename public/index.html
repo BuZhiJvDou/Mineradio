@@ -7010,6 +7010,7 @@ function applySkullCameraPose(dt) {
   camera.updateProjectionMatrix();
 }
 function updateSkullParticleLayer(dt) {
+  if (isDeepBackgroundMode()) return;
   var active = fx && fx.preset === SKULL_PRESET_INDEX;
   if (active && !skullParticleAsset.data && !skullParticleAsset.failed) {
     loadSkullParticleAsset();
