@@ -440,3 +440,16 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 - 多个 tick 函数早返回
 - 所有改动极小、精确、风格一致
 
+
+### 已执行的小优化 (Opt-6)
+
+**优化**：在 `tickShelfHoverCue()` 顶部添加 `if (isDeepBackgroundMode()) return;`
+
+**原因**：悬停提示 cue 在后台无需更新。
+
+**当前后台优化小结**（本次 sprint）：
+- 减少 performance.now() 调用
+- Deep 模式跳过 getRenderPixelRatio 等计算
+- 多个 tick (lyrics particles, beat map, mesh, shelf hover) 早返回
+- 所有改动 1 行级别，精确、安全、风格一致
+

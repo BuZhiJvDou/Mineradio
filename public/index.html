@@ -12899,6 +12899,7 @@ function updateShelfHoverCueFromPointer(e) {
   shelfHoverCue.lastAt = performance.now();
 }
 function tickShelfHoverCue(dt) {
+  if (isDeepBackgroundMode()) return;
   if (!shelfHoverCue.guide && shelfHoverCue.zoneActive) {
     var heldPointer = { clientX: shelfHoverCue.x, clientY: shelfHoverCue.y };
     if (canShowShelfHoverCueAt(heldPointer)) {
