@@ -1,0 +1,195 @@
+# Mineradio 二次开发实施计划
+
+> **分支**：`feature/secondary-dev`（已创建）  
+> **当前状态**：与 upstream/main 完全同步（v1.1.1 基线）  
+> **目标**：在 fork 上安全地进行二次开发，严格遵守项目约束，添加新功能或改进核心体验。
+
+**Goal（一句话）**：建立规范的二次开发工作流，并为后续功能开发做好准备，同时完全尊重现有的视觉质感、记忆系统和发布规则。
+
+**Architecture**：保持现有架构不变（Electron + public/index.html 单文件视觉系统 + server.js 本地服务）。所有修改必须先定位现有函数，采用增量式修改。优先使用 TDD 或至少手动验证。
+
+**Tech Stack**：Electron 42、Three.js、GSAP、NeteaseCloudMusicApi、mpg123-decoder、本地 HTML/JS。
+
+**约束与必须遵守的文档**（每次开发前必读）：
+- `AGENTS.md`（根目录）
+- `docs/PROJECT_MEMORY.md`
+- `docs/GLASS_SVG_TEXTURE.md`（玻璃质感黄金版本，严禁破坏）
+- `CHANGELOG.md`
+- `README.md`
+- 相关专项文档（如 3D_PLAYLIST_SHELF_MEMORY.md、DESKTOP_LYRICS_VISUAL.md）
+
+**禁止事项**（来自 AGENTS.md Guardrails）：
+- 不要随意重写 `public/index.html` 的大块视觉系统。
+- 不要动电影视觉系统（除非用户明确指定）。
+- 不要把玻璃质感改成普通毛玻璃或廉价透明。
+- 性能优化不能牺牲质感、丝滑度和帧数稳定。
+- 不要恢复历史已修复的 bug（如侧边栏闪烁等）。
+
+**交流语言**：中文。
+
+---
+
+## 阶段 1：环境与分支准备（已完成）
+
+### Task 1.1: 创建二次开发分支
+**Objective:** 从 main 切出独立开发分支，避免污染主线。
+
+**Files:**
+- 无需修改代码
+
+**Steps:**
+1. 执行：`git checkout -b feature/secondary-dev`
+2. 验证：`git branch --show-current`
+3. （可选）推送到 fork：`git push -u origin feature/secondary-dev`
+
+**Verification:**
+- 当前分支为 `feature/secondary-dev`
+- `git status` 干净
+
+**Status:** 已完成（2026-07-19）
+
+---
+
+## 阶段 2：深入理解与记忆同步（必须先做）
+
+### Task 2.1: 完整阅读核心约束文档
+**Objective:** 确保所有二次开发严格遵守项目记忆和规则。
+
+**Files:**
+- Read: `AGENTS.md`
+- Read: `docs/PROJECT_MEMORY.md`
+- Read: `docs/GLASS_SVG_TEXTURE.md`
+- Read: `README.md`
+- Read: `CHANGELOG.md`
+
+**Steps:**
+1. 使用工具完整读取以上文件。
+2. 提取关键 Guardrails 和 Stable Facts。
+3. 在本次对话中总结并确认理解。
+
+**Verification:**
+- 能准确复述玻璃质感、3D 歌单架、发布流程等核心约束。
+
+### Task 2.2: 探索核心代码结构
+**Objective:** 定位主要模块，便于后续精准修改。
+
+**Files:**
+- Read: `public/index.html`（先读关键部分，可分段）
+- Read: `desktop/main.js`（窗口、IPC、登录逻辑）
+- Read: `server.js`（前 200 行 + 音乐源相关函数）
+- Read: `dj-analyzer.js`
+- Read: `package.json`
+
+**Steps:**
+1. 列出主要视觉模块（粒子、3D、歌词舞台）。
+2. 找出音乐搜索/播放/登录的入口函数。
+3. 记录现有视觉预设和用户存档机制。
+
+**Verification:**
+- 能画出简要模块关系图或列出关键函数名。
+
+---
+
+## 阶段 3：二次开发路线图（建议优先级）
+
+基于当前项目特点，推荐以下开发方向（可根据用户选择调整）：
+
+### 高优先级（增强现有体验）
+- 3D 歌单架功能扩展（更多交互、动画优化）
+- QQ 音乐 / 网易云 搜索体验改进（排序、过滤、缓存）
+- 桌面歌词窗口增强（透明度、锁定、样式自定义）
+- 视觉预设系统扩展（允许用户保存/分享自定义预设）
+
+### 中优先级（新功能）
+- 增加更多天气/场景驱动的播放逻辑
+- 节奏分析进一步优化（DJ 模式增强）
+- 自动更新机制改进（更友好的进度提示、镜像选择）
+- 主题/皮肤系统（在不破坏玻璃质感前提下）
+
+### 低优先级（基础设施）
+- 代码模块化尝试（谨慎，不破坏单文件视觉系统）
+- 单元/集成测试补充（目前基本没有）
+- 性能监控面板
+
+---
+
+## 阶段 4：第一个具体功能示例计划（待确认）
+
+**示例功能**（可替换）：**增强 3D 歌单架的右键菜单与快速操作**
+
+### Task 4.1: 调研现有 3D 歌单架实现
+**Objective:** 定位 3D 歌单架的代码位置和当前交互逻辑。
+
+**Files:**
+- Modify/Read: `public/index.html`（搜索 "3D" 或 "playlist shelf" 相关代码）
+
+**Steps:**
+1. 找到 Three.js 场景初始化代码。
+2. 找到右键唤起歌单架的逻辑。
+3. 阅读 `docs/3D_PLAYLIST_SHELF_MEMORY.md`（如果存在）。
+
+**Verification:**
+- 列出至少 3 个关键函数/变量名。
+
+### Task 4.2: 设计并实现“快速添加到当前播放”功能
+**Objective:** 在 3D 歌单架中支持右键菜单快速将歌曲加入当前播放列表。
+
+**Files:**
+- Modify: `public/index.html`（对应 3D 交互部分）
+- Modify（如果需要）: `server.js`（播放队列相关 API）
+
+**Step-by-step (TDD 风格):**
+1. **定位现有代码**：找到歌单架项目点击/右键事件处理函数。
+2. **添加右键菜单项**：在现有菜单中增加“添加到当前播放”选项。
+3. **实现逻辑**：调用现有的播放队列添加函数，并给出视觉反馈。
+4. **测试**：手动在应用中右键测试，验证不会破坏粒子/歌词同步。
+5. **记录记忆**：更新 `docs/PROJECT_MEMORY.md` 和 `docs/3D_PLAYLIST_SHELF_MEMORY.md`。
+
+**Verification:**
+- 功能可用，且玻璃质感、帧率、现有动画无回归。
+
+### Task 4.3: 提交与文档更新
+**Objective:** 保持良好提交历史和项目记忆。
+
+**Commands:**
+```bash
+git add public/index.html docs/plans/...
+git commit -m "feat(3d): 在 3D 歌单架增加快速添加到播放列表功能
+
+- 遵循 AGENTS.md 约束
+- 保留玻璃质感与现有视觉系统"
+```
+
+**Verification:**
+- PR/MR 描述清晰，引用此计划。
+
+---
+
+## 阶段 5：发布与长期维护
+
+- 任何可发布的改动必须更新 `CHANGELOG.md`（顶部中文）。
+- 版本号按语义化递增。
+- 发布前完整构建测试（`npm run build:win`）。
+- 把用户认可的改动及时追加到 `docs/PROJECT_MEMORY.md`。
+
+---
+
+## 后续执行建议
+
+1. **本计划已保存到**：`docs/plans/2026-07-19-secondary-dev-plan.md`
+2. 确认具体想先做的功能后，我可以细化该功能的独立计划。
+3. 实际编码工作将委托给 Codex 子代理（作为监工监督执行 + 两阶段评审）。
+4. 每完成一个 Task 后，更新此计划状态并提交。
+
+**计划状态**：已创建分支 + 基础计划完成。
+
+---
+
+**准备就绪。**
+
+请告诉我：
+- 这个计划是否符合预期？
+- 想先从哪个方向/具体功能开始二次开发？
+- 是否现在细化第一个功能计划并开始执行（可委托 Codex）？
+
+直接回复“继续”或指定功能即可。
