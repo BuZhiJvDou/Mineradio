@@ -26654,6 +26654,8 @@ function animate() {
     }
     return;
   }
+  if (isDeepBackgroundMode()) return;
+
   pointerParallax.x += (pointerTarget.x - pointerParallax.x) * 0.040;
   pointerParallax.y += (pointerTarget.y - pointerParallax.y) * 0.040;
 

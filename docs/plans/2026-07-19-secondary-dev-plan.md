@@ -504,3 +504,14 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **当前后台优化小结**：多处 visual tick 早返回 + 时间戳复用 + 跳过计算，全部极小精确改动。
 
+
+### 已执行的小优化 (Opt-10)
+
+**优化**：在 `animate()` 主循环中，splash 检查之后立即添加 `if (isDeepBackgroundMode()) return;`
+
+**原因**：跳过 parallax 更新、整个频谱分析 (getByteFrequencyData/getByteTimeDomainData + 大量计算)、realtimeBeat 处理、后续的 beat ticks、render 等昂贵操作。
+
+**效果**：深度睡眠时主 RAF 循环几乎立即返回，显著降低后台 CPU 使用，同时保持 RAF 存活（power mode 已将画布缩到 4x4）。
+
+**改动**：1 行精确插入，位置在重度处理之前，风格与现有 background guard 一致。
+
