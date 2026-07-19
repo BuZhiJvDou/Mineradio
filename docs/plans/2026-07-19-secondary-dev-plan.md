@@ -526,3 +526,12 @@ var pixelRatio = deep ? 0.5 : getRenderPixelRatio();
 
 **累计效果**：后台主循环开销进一步降低。
 
+
+### 已执行的小优化 (Opt-12 微优化)
+
+**优化**：在 collectRuntimePerfSnapshot 中，将 isRenderInteractionActive() 改为 isRenderInteractionActive(now)（now 已从调用方传入）。
+
+**原因**：避免 fallback 里的 performance.now() 调用。
+
+**改动**：1 处精确参数传递。
+

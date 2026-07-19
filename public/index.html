@@ -3609,7 +3609,7 @@ function collectRuntimePerfSnapshot(now) {
       canvasHeight: renderer.domElement.height || 0,
       renderPixels: (renderer.domElement.width || 0) * (renderer.domElement.height || 0),
       targetFps: (typeof getAdaptiveRenderFps === 'function') ? getAdaptiveRenderFps() : 0,
-      interactionBoost: (typeof isRenderInteractionActive === 'function') ? isRenderInteractionActive() : false,
+      interactionBoost: (typeof isRenderInteractionActive === 'function') ? isRenderInteractionActive(now) : false,
       interactionReason: (typeof renderInteractionReason !== 'undefined') ? renderInteractionReason : ''
     } : null,
     deepSleep: isDeepBackgroundMode()
