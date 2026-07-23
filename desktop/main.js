@@ -1333,6 +1333,153 @@ ipcMain.handle('qishui-fetch-recommend-close', async () => {
   return { ok: true };
 });
 
+// --- Qishui Playlist Scraper: open visible window, scrape songs from current page ---
+let _qishuiScrapeWindow = null;
+
+ipcMain.handle('qishui-open-scrape-window', async () => {
+  try {
+    if (_qishuiScrapeWindow && !_qishuiScrapeWindow.isDestroyed()) {
+      _qishuiScrapeWindow.focus();
+      return { ok: true, reused: true };
+    }
+    const { BrowserWindow } = require('electron');
+    _qishuiScrapeWindow = new BrowserWindow({
+      width: 1100, height: 800,
+      title: '汽水音乐 - 登录后打开歌单页面，然后回 Mineradio 点「抓取」',
+      webPreferences: {
+        partition: QISHUI_LOGIN_PARTITION,
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true
+      }
+    });
+    _qishuiScrapeWindow.setMenu(null);
+    _qishuiScrapeWindow.loadURL(QISHUI_LOGIN_URL);
+    _qishuiScrapeWindow.on('closed', () => { _qishuiScrapeWindow = null; });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('qishui-scrape-songs', async () => {
+  try {
+    if (!_qishuiScrapeWindow || _qishuiScrapeWindow.isDestroyed()) {
+      return { ok: false, error: '请先打开汽水音乐窗口' };
+    }
+    const wc = _qishuiScrapeWindow.webContents;
+    const url = wc.getURL();
+
+    // Execute adaptive scraping JS in the page context
+    const jsCode = `
+      (() => {
+        const results = [];
+        const seen = new Set();
+
+        // Strategy 1: Find elements that look like song rows
+        // Common music web patterns: rows with title + subtitle/artist
+        const candidates = document.querySelectorAll(
+          '[class*="song"], [class*="track"], [class*="music"], ' +
+          '[class*="item"], [class*="row"], [class*="list"] > div, ' +
+          'tr, li'
+        );
+
+        for (const el of candidates) {
+          // Skip tiny or huge elements
+          if (el.offsetHeight < 20 || el.offsetHeight > 200) continue;
+          if (el.offsetWidth < 100) continue;
+
+          const texts = [];
+          const walk = (node) => {
+            if (node.nodeType === 3) {
+              const t = node.textContent.trim();
+              if (t) texts.push(t);
+            }
+            for (const c of node.childNodes) walk(c);
+          };
+          walk(el);
+
+          if (texts.length < 1 || texts.length > 10) continue;
+
+          // Try to identify song name (longest text) and artist (shorter text)
+          const sorted = texts.filter(t => t.length > 0).sort((a, b) => b.length - a.length);
+          if (sorted.length >= 1) {
+            const name = sorted[0];
+            const artist = sorted.length >= 2 ? sorted[1] : '';
+            const key = name + '|' + artist;
+            if (!seen.has(key) && name.length >= 1 && name.length <= 80) {
+              seen.add(key);
+              results.push({ name, artist, source: 'qishui' });
+            }
+          }
+        }
+
+        // Strategy 2: Look for structured data (JSON-LD, __NEXT_DATA__, etc.)
+        try {
+          const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+          for (const s of scripts) {
+            const data = JSON.parse(s.textContent);
+            if (data && data.itemListElement) {
+              for (const item of data.itemListElement) {
+                if (item.name) results.push({ name: item.name, artist: item.author || '', source: 'qishui' });
+              }
+            }
+          }
+        } catch (e) {}
+
+        try {
+          if (window.__NEXT_DATA__ && window.__NEXT_DATA__.props) {
+            const pageProps = window.__NEXT_DATA__.props.pageProps || {};
+            const walk = (obj, depth) => {
+              if (depth > 5 || !obj) return;
+              if (Array.isArray(obj)) {
+                for (const item of obj) {
+                  if (item && typeof item === 'object') {
+                    if (item.name && (item.artist || item.author || item.singer)) {
+                      const key = item.name + '|' + (item.artist || item.author || item.singer);
+                      if (!seen.has(key)) {
+                        seen.add(key);
+                        results.push({ name: item.name, artist: item.artist || item.author || item.singer || '', source: 'qishui' });
+                      }
+                    }
+                    walk(item, depth + 1);
+                  }
+                }
+              } else if (typeof obj === 'object') {
+                for (const k of Object.keys(obj)) walk(obj[k], depth + 1);
+              }
+            };
+            walk(pageProps, 0);
+          }
+        } catch (e) {}
+
+        // Strategy 3: Intercept XHR/fetch responses (look for cached data)
+        try {
+          const entries = performance.getEntriesByType('resource');
+          // Just report what APIs were called for debugging
+          const apiCalls = entries.filter(e => e.name.includes('/api/')).map(e => e.name).slice(0, 10);
+          return { ok: results.length > 0, songs: results.slice(0, 200), url: location.href, apiCalls: apiCalls, count: results.length };
+        } catch (e) {
+          return { ok: results.length > 0, songs: results.slice(0, 200), url: location.href, count: results.length };
+        }
+      })()
+    `;
+
+    const result = await wc.executeJavaScript(jsCode, 10000);
+    return Object.assign({ ok: !!(result && result.ok && result.songs && result.songs.length), pageUrl: url }, result || {});
+  } catch (err) {
+    console.error('[QishuiScrape]', err);
+    return { ok: false, error: err.message || String(err) };
+  }
+});
+
+ipcMain.handle('qishui-close-scrape-window', async () => {
+  try { if (_qishuiScrapeWindow && !_qishuiScrapeWindow.isDestroyed()) _qishuiScrapeWindow.destroy(); } catch(_){}
+  _qishuiScrapeWindow = null;
+  return { ok: true };
+});
+
+
 
 ipcMain.handle('mineradio-open-update-installer', async (_event, filePath) => {
   try {

@@ -1907,10 +1907,10 @@ html.control-glass-svg-ok #visual-guide-btn:hover{
         <div class="home-card-sub" id="home-weather-card-sub">打开左侧歌单库</div>
         <div class="home-card-art" id="home-weather-art"></div>
       </button>
-      <button class="home-card" data-home-tone="qishui" type="button" onclick="loadQishuiRecs()">
-        <div class="home-card-label">Qishui</div>
-        <div class="home-card-title" id="home-qishui-title">汽水推荐</div>
-        <div class="home-card-sub" id="home-qishui-sub">登录后获取个性化推荐</div>
+      <button class="home-card" data-home-tone="qishui" type="button" onclick="importQishuiPlaylist()">
+        <div class="home-card-label">Import</div>
+        <div class="home-card-title" id="home-qishui-title">导入汽水歌单</div>
+        <div class="home-card-sub" id="home-qishui-sub">从汽水音乐导入歌单到本地</div>
         <div class="home-card-art" id="home-qishui-art"></div>
       </button>
       <button class="home-card" data-home-tone="mix" type="button" onclick="playHomeSong(0)">
@@ -15568,91 +15568,173 @@ function renderHomeTiles() {
   renderHomeMosaic(tiles);
 }
 
-async function loadQishuiRecs() {
+// === Qishui Playlist Import ===
+// Opens a BrowserWindow to music.douyin.com, user navigates to playlist,
+// then we scrape song names and search on Netease/QQ for playback.
+
+var _qishuiImportState = { phase: 'idle', songs: [], matched: [], playlistName: '' };
+
+async function importQishuiPlaylist() {
   var titleEl = document.getElementById('home-qishui-title');
   var subEl = document.getElementById('home-qishui-sub');
   var api = window.desktopWindow;
 
-  if (!api || !api.isDesktop || typeof api.qishuiFetchRecommend !== 'function') {
-    if (subEl) subEl.textContent = '仅桌面版支持汽水音乐';
-    showToast('汽水音乐仅在桌面版可用');
+  if (!api || !api.isDesktop || typeof api.qishuiOpenScrapeWindow !== 'function') {
+    showToast('仅桌面版支持导入汽水歌单');
     return;
   }
 
-  if (titleEl) titleEl.textContent = '汽水推荐';
-  if (subEl) subEl.textContent = '正在加载…';
+  if (_qishuiImportState.phase === 'scraping') {
+    // Already have window open, do the scrape
+    await scrapeQishuiSongs();
+    return;
+  }
+
+  if (titleEl) titleEl.textContent = '导入汽水歌单';
+  if (subEl) subEl.textContent = '正在打开汽水音乐…';
+  showToast('正在打开汽水音乐窗口…');
 
   try {
-    var result = await api.qishuiFetchRecommend();
-    console.log('[QishuiRecs] result:', JSON.stringify(result).substring(0, 500));
-
-    if (!result) throw new Error('空返回');
-
-    if (!result.loggedIn || result.error === 'login_required') {
-      if (subEl) subEl.textContent = '点击登录汽水音乐';
-      showToast('请先登录汽水音乐');
-      openProviderLogin('qishui');
+    var result = await api.qishuiOpenScrapeWindow();
+    if (!result || !result.ok) {
+      showToast('打开失败: ' + (result && result.error || '未知'));
+      if (subEl) subEl.textContent = '打开失败';
       return;
     }
 
-    if (!result.ok) {
-      var errMsg = result.error || 'unknown';
-      if (subEl) subEl.textContent = '推荐加载失败: ' + errMsg;
-      showToast('汽水推荐加载失败: ' + errMsg);
-      console.warn('[QishuiRecs] API failed:', result);
-      return;
-    }
-
-    var songs = [];
-    var rd = result.data || result;
-    if (rd.data) {
-      var dd = rd.data;
-      songs = dd.songs || dd.list || dd.items || dd.dailySongs || dd.recommend || [];
-      if (!Array.isArray(songs) && typeof dd === 'object') {
-        for (var k in dd) {
-          if (Array.isArray(dd[k]) && dd[k].length > 0 && dd[k][0] && (dd[k][0].name || dd[k][0].title)) {
-            songs = dd[k]; break;
-          }
-        }
-      }
-    }
-    if (!songs.length) songs = rd.songs || rd.list || rd.items || rd.recommend || [];
-    if (!Array.isArray(songs)) songs = [];
-
-    songs = songs.map(function(s) {
-      var item = s.song || s;
-      return {
-        id: item.id || item.song_id || item.vid || item.item_id || '',
-        name: item.name || item.title || item.song_name || '未知',
-        artist: item.artist || item.author || item.singer || '',
-        cover: item.cover || item.pic || item.album_pic || item.album_cover || '',
-        source: 'qishui', provider: 'qishui'
-      };
-    }).filter(function(s) { return s.id || s.name !== '未知'; });
-
-    if (songs.length > 0) {
-      if (titleEl) titleEl.textContent = songs[0].name || '汽水推荐';
-      if (subEl) subEl.textContent = (songs[0].artist || '汽水音乐') + ' 等 ' + songs.length + ' 首';
-      showToast('已加载 ' + songs.length + ' 首汽水推荐');
-      try {
-        if (typeof homeDiscoverState !== 'undefined') {
-          homeDiscoverState.qishui = songs.slice(0, 6);
-          if (typeof renderHomeTiles === 'function') renderHomeTiles();
-        }
-      } catch (e) {}
-      var first = songs[0];
-      if (first) playTrack(first, { source: 'qishui', provider: 'qishui' });
-    } else {
-      if (subEl) subEl.textContent = '暂无推荐（端点: ' + (result.endpoint || result.source || '未知') + '）';
-      showToast('汽水推荐返回为空，详见控制台');
-      console.warn('[QishuiRecs] empty songs, raw:', JSON.stringify(result).substring(0, 1000));
-    }
+    _qishuiImportState.phase = 'scraping';
+    if (titleEl) titleEl.textContent = '准备抓取';
+    if (subEl) subEl.textContent = '在弹出窗口中打开歌单，然后点击此卡片抓取';
+    showToast('请在弹出的窗口中登录并打开歌单页面，然后点击此卡片抓取');
   } catch (e) {
-    console.warn('loadQishuiRecs error', e);
-    if (subEl) subEl.textContent = '加载失败';
-    showToast('汽水推荐加载失败: ' + (e.message || e));
+    showToast('打开汽水音乐失败: ' + e.message);
+    if (subEl) subEl.textContent = '打开失败';
   }
 }
+
+async function scrapeQishuiSongs() {
+  var titleEl = document.getElementById('home-qishui-title');
+  var subEl = document.getElementById('home-qishui-sub');
+  var api = window.desktopWindow;
+
+  if (titleEl) titleEl.textContent = '正在抓取…';
+  if (subEl) subEl.textContent = '从汽水音乐页面提取歌曲…';
+  showToast('正在抓取页面数据…');
+
+  try {
+    var result = await api.qishuiScrapeSongs();
+    console.log('[QishuiScrape] result:', JSON.stringify(result).substring(0, 800));
+
+    if (!result || !result.ok || !result.songs || !result.songs.length) {
+      var errMsg = (result && result.error) || '未找到歌曲';
+      if (subEl) subEl.textContent = '抓取失败: ' + errMsg;
+      showToast('未在页面中找到歌曲，请确保已打开歌单页面');
+      console.warn('[QishuiScrape] failed:', result);
+      return;
+    }
+
+    var songs = result.songs;
+    _qishuiImportState.songs = songs;
+    _qishuiImportState.phase = 'matching';
+
+    if (titleEl) titleEl.textContent = '已抓取 ' + songs.length + ' 首';
+    if (subEl) subEl.textContent = '正在搜索匹配…';
+    showToast('抓到 ' + songs.length + ' 首歌，正在搜索匹配…');
+
+    // Close the scrape window
+    try { await api.qishuiCloseScrapeWindow(); } catch(e) {}
+
+    // Search each song on Netease/QQ to find playable matches
+    await matchAndCreatePlaylist(songs);
+  } catch (e) {
+    console.warn('[QishuiScrape] error:', e);
+    showToast('抓取失败: ' + e.message);
+    if (subEl) subEl.textContent = '抓取出错';
+  }
+}
+
+async function matchAndCreatePlaylist(songs) {
+  var titleEl = document.getElementById('home-qishui-title');
+  var subEl = document.getElementById('home-qishui-sub');
+  var matched = [];
+  var failed = 0;
+
+  for (var i = 0; i < songs.length; i++) {
+    var s = songs[i];
+    var query = s.name + (s.artist ? ' ' + s.artist : '');
+    if (titleEl) titleEl.textContent = '匹配中 ' + (i + 1) + '/' + songs.length;
+    if (subEl) subEl.textContent = '搜索: ' + query;
+
+    try {
+      var resp = await apiJson('/api/search?keywords=' + encodeURIComponent(query) + '&limit=1');
+      var found = resp && resp.songs && resp.songs[0];
+      if (found) {
+        matched.push({
+          id: found.id,
+          name: found.name || s.name,
+          artist: found.artist || s.artist || '',
+          cover: found.cover || found.picUrl || '',
+          album: found.album || '',
+          duration: found.duration || 0,
+          source: found.source || 'netease',
+          provider: found.source || 'netease',
+          qishuiName: s.name,
+          qishuiArtist: s.artist
+        });
+      } else {
+        failed++;
+      }
+    } catch (e) {
+      failed++;
+    }
+
+    // Small delay to avoid hammering
+    if (i < songs.length - 1) await new Promise(function(r) { setTimeout(r, 300); });
+  }
+
+  _qishuiImportState.matched = matched;
+  _qishuiImportState.phase = 'done';
+
+  if (matched.length > 0) {
+    var plName = '汽水导入 ' + new Date().toLocaleDateString();
+    _qishuiImportState.playlistName = plName;
+
+    // Add to user playlists as a local playlist
+    var newPl = {
+      id: 'qishui-import-' + Date.now(),
+      name: plName,
+      tracks: matched,
+      trackCount: matched.length,
+      cover: matched[0].cover || '',
+      source: 'local',
+      provider: 'local',
+      subscribed: false
+    };
+
+    userPlaylists.unshift(newPl);
+
+    if (titleEl) titleEl.textContent = plName;
+    if (subEl) subEl.textContent = matched.length + ' 首已匹配' + (failed > 0 ? '，' + failed + ' 首未找到' : '');
+    showToast('导入完成！' + matched.length + ' 首歌已添加到歌单「' + plName + '」');
+
+    // Refresh shelf if available
+    try { if (typeof updateShelfControlUi === 'function') updateShelfControlUi(); } catch(e) {}
+    try { if (typeof renderHomeTiles === 'function') renderHomeTiles(); } catch(e) {}
+
+    // Play the first matched song
+    if (matched[0]) playTrack(matched[0], { source: matched[0].source });
+  } else {
+    if (titleEl) titleEl.textContent = '导入失败';
+    if (subEl) subEl.textContent = '未能匹配任何歌曲';
+    showToast('未能匹配到任何歌曲，请检查歌单页面是否正确加载');
+  }
+}
+
+// Keep loadQishuiRecs as alias for compatibility
+function loadQishuiRecs() { importQishuiPlaylist(); }
+
+
+
 
 
 function renderHomeDiscover() {
