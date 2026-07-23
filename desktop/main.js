@@ -1342,10 +1342,56 @@ ipcMain.handle('qishui-open-scrape-window', async () => {
       _qishuiScrapeWindow.focus();
       return { ok: true, reused: true };
     }
+
+    // Import cookies from SodaMusic desktop app (exported by Python helper)
+    let importedCookieCount = 0;
+    try {
+      const sodaCookieFile = path.join(process.env.APPDATA || '', 'SodaMusic', '.qishui-cookies-export.txt');
+      const ownCookieFile = path.join(__dirname, '..', '.qishui-cookie');
+
+      // Try SodaMusic export first, then our own saved cookie
+      let cookieText = '';
+      if (fs.existsSync(sodaCookieFile)) {
+        cookieText = fs.readFileSync(sodaCookieFile, 'utf8').trim();
+        console.log('[QishuiScrape] Read cookies from SodaMusic export');
+      } else if (fs.existsSync(ownCookieFile)) {
+        cookieText = fs.readFileSync(ownCookieFile, 'utf8').trim();
+        console.log('[QishuiScrape] Read cookies from own saved file');
+      }
+
+      if (cookieText) {
+        const { session: electronSession } = require('electron');
+        const cookieSession = electronSession.fromPartition(QISHUI_LOGIN_PARTITION);
+        const pairs = cookieText.split(';').map(s => s.trim()).filter(Boolean);
+        for (const pair of pairs) {
+          const eqIdx = pair.indexOf('=');
+          if (eqIdx > 0) {
+            const name = pair.slice(0, eqIdx).trim();
+            const value = pair.slice(eqIdx + 1).trim();
+            try {
+              await cookieSession.cookies.set({
+                url: 'https://music.douyin.com',
+                name: name,
+                value: value,
+                domain: '.qishui.com',
+                path: '/'
+              });
+              importedCookieCount++;
+            } catch (_) {}
+          }
+        }
+        console.log('[QishuiScrape] Injected ' + importedCookieCount + ' cookies into session');
+      }
+    } catch (importErr) {
+      console.warn('[QishuiScrape] Cookie import failed:', importErr.message);
+    }
+
     const { BrowserWindow } = require('electron');
     _qishuiScrapeWindow = new BrowserWindow({
       width: 1100, height: 800,
-      title: '汽水音乐 - 登录后打开歌单页面，然后回 Mineradio 点「抓取」',
+      title: importedCookieCount > 0
+        ? '汽水音乐 - 已导入 ' + importedCookieCount + ' 个cookie，打开歌单页面后回 Mineradio 点「抓取」'
+        : '汽水音乐 - 请先登录，然后打开歌单页面',
       webPreferences: {
         partition: QISHUI_LOGIN_PARTITION,
         nodeIntegration: false,
@@ -1356,7 +1402,7 @@ ipcMain.handle('qishui-open-scrape-window', async () => {
     _qishuiScrapeWindow.setMenu(null);
     _qishuiScrapeWindow.loadURL(QISHUI_LOGIN_URL);
     _qishuiScrapeWindow.on('closed', () => { _qishuiScrapeWindow = null; });
-    return { ok: true };
+    return { ok: true, importedCookies: importedCookieCount };
   } catch (err) {
     return { ok: false, error: err.message };
   }
