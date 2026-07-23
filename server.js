@@ -182,6 +182,22 @@ function saveCookie(c) {
 let qqCookie = '';
 try { if (fs.existsSync(QQ_COOKIE_FILE)) qqCookie = fs.readFileSync(QQ_COOKIE_FILE, 'utf8').trim(); }
 catch (e) { qqCookie = ''; }
+function saveQishuiCookie(c) {
+  try { fs.writeFileSync(QISHUI_COOKIE_FILE, c || ''); } catch (e) {}
+}
+
+function readQishuiCookie() {
+  try {
+    if (fs.existsSync(QISHUI_COOKIE_FILE)) return fs.readFileSync(QISHUI_COOKIE_FILE, 'utf8').trim();
+  } catch (e) {}
+  return '';
+}
+
+function qishuiCookieHasLogin(cookieText) {
+  if (!cookieText) return false;
+  return /sessionid|passport_csrf_token/i.test(cookieText);
+}
+
 function saveQQCookie(c) {
   qqCookie = normalizeCookieHeader(c) || rawCookieFallback(c);
   try { fs.writeFileSync(QQ_COOKIE_FILE, qqCookie); } catch (e) {}
@@ -3571,6 +3587,25 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (pn === '/api/qishui/login/cookie') {
+    try {
+      const body = await readRequestBody(req);
+      const raw = body.cookie || body.data || body.text || '';
+      if (!raw) {
+        sendJSON(res, { provider: 'qishui', loggedIn: false, error: 'EMPTY_COOKIE' }, 400);
+        return;
+      }
+      saveQishuiCookie(raw);
+      const cookie = await readQishuiCookie();
+      const loggedIn = qishuiCookieHasLogin(cookie);
+      sendJSON(res, { provider: 'qishui', loggedIn: loggedIn, saved: true });
+    } catch (err) {
+      console.error('[QishuiLoginCookie]', err);
+      sendJSON(res, { provider: 'qishui', loggedIn: false, error: err.message }, 500);
+    }
+    return;
+  }
+
   if (pn === '/api/qishui/recommend') {
     try {
       const cookie = await readQishuiCookie();
@@ -3578,16 +3613,18 @@ const server = http.createServer(async (req, res) => {
         sendJSON(res, { provider: 'qishui', dailySongs: [], loggedIn: false, error: 'login_required' });
         return;
       }
-      // Basic personalized rec using Douyin-style endpoint (community reverse)
       const https = require('https');
       const opts = {
         hostname: 'music.douyin.com',
-        path: '/api/song/recommend?count=20&cursor=0',
+        path: '/api/song/recommend?count=20&cursor=0&version=1',
         headers: {
           'Cookie': cookie,
           'User-Agent': UA,
           'Referer': 'https://music.douyin.com',
-          'Accept': 'application/json, text/plain, */*'
+          'Origin': 'https://music.douyin.com',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'zh-CN,zh;q=0.9',
+          'X-Requested-With': 'XMLHttpRequest'
         }
       };
       const recData = await new Promise((resolve) => {
@@ -3600,19 +3637,32 @@ const server = http.createServer(async (req, res) => {
         });
         req.on('error', () => resolve({}));
       });
+
       let songs = [];
-      const list = (recData && (recData.data || recData.list || recData.songs || []));
-      songs = list.map((it) => {
+      // Douyin/Qishui rec responses can be nested differently
+      const rawList = (recData?.data && (recData.data.list || recData.data.songs || recData.data.items)) || 
+                      recData?.list || recData?.songs || recData?.items || recData?.data || recData || [];
+
+      songs = (Array.isArray(rawList) ? rawList : []).map((it) => {
         const s = it.song || it || {};
+        let playUrl = s.play_url || s.url || s.playUrl || '';
+        // sometimes it's under extra
+        if (!playUrl && s.extra) playUrl = s.extra.play_url || '';
+
         return {
-          id: s.id || s.song_id || s.vid || s.aid,
-          name: s.name || s.title || s.songName,
-          artist: (s.artists && s.artists[0] && s.artists[0].name) || s.author || s.artist || s.singer || '',
-          cover: s.cover || s.pic || s.cover_url || '',
+          id: s.id || s.song_id || s.vid || s.aid || s.item_id,
+          name: s.name || s.title || s.songName || s.display_name,
+          artist: (s.artists && s.artists[0] && s.artists[0].name) || s.author || s.artist || s.singer || s.user_name || '',
+          cover: s.cover || s.pic || s.cover_url || s.large_cover_url || '',
+          url: playUrl || undefined,
           source: 'qishui',
           provider: 'qishui'
         };
       }).filter(s => s.id && s.name).slice(0, 20);
+
+      if (!songs.length) {
+        console.log('[QishuiRecommend] raw response (no songs):', JSON.stringify(recData).substring(0, 300));
+      }
       sendJSON(res, { provider: 'qishui', dailySongs: songs, loggedIn: true, updatedAt: Date.now() });
     } catch (err) {
       console.error('[QishuiRecommend]', err);
@@ -3626,10 +3676,34 @@ const server = http.createServer(async (req, res) => {
       const cookie = await readQishuiCookie();
       const id = url.searchParams.get('id') || url.searchParams.get('vid') || url.searchParams.get('songId');
       if (!id) { sendJSON(res, { error: 'MISSING_ID' }, 400); return; }
-      // Basic: for many Qishui tracks the recommend already can include url, or use play endpoint
-      // For minimal playable, try a direct play URL pattern (may need header in client later)
-      const playUrl = `https://api.music.douyin.com/play/${id}`;
-      sendJSON(res, { url: playUrl, source: 'qishui', id, provider: 'qishui' });
+
+      // Try to get a real play URL using Douyin play API (very rough reverse)
+      const https = require('https');
+      const playPath = `/aweme/v1/play/?video_id=${id}&line=0&is_play_url=1&source=PackSourceEnum_PUBLISH`;
+      const opts = {
+        hostname: 'api.music.douyin.com',
+        path: playPath,
+        headers: {
+          'Cookie': cookie,
+          'User-Agent': UA,
+          'Referer': 'https://music.douyin.com'
+        }
+      };
+
+      const playInfo = await new Promise((resolve) => {
+        https.get(opts, (r) => {
+          let d = '';
+          r.on('data', ch => d += ch);
+          r.on('end', () => { try { resolve(JSON.parse(d)); } catch(e){ resolve({}); } });
+        }).on('error', () => resolve({}));
+      });
+
+      let realUrl = playInfo?.data?.play_url?.url_list?.[0] || playInfo?.play_url || '';
+      if (!realUrl) {
+        // fallback
+        realUrl = `https://api.music.douyin.com/play/${id}`;
+      }
+      sendJSON(res, { url: realUrl, source: 'qishui', id, provider: 'qishui' });
     } catch (err) {
       sendJSON(res, { error: err.message }, 500);
     }
@@ -4275,7 +4349,12 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log('======================================================');
   console.log(' 粒子音乐可视化 v2  →  http://localhost:' + PORT);
-  console.log(' 登录态: ' + (userCookie ? '已登录(cookie已加载)' : '未登录'));
+  const neteaseLogged = !!userCookie;
+  const qqLogged = !!qqCookie && (qqCookie.includes('uin') || qqCookie.includes('qqmusic_key'));
+  let qishuiCookie = '';
+  try { if (fs.existsSync(QISHUI_COOKIE_FILE)) qishuiCookie = fs.readFileSync(QISHUI_COOKIE_FILE, 'utf8').trim(); } catch(e){}
+  const qishuiLogged = qishuiCookieHasLogin(qishuiCookie);
+  console.log(' 登录态: Netease=' + (neteaseLogged ? '已登录' : '未登录') + ' | QQ=' + (qqLogged ? '已登录' : '未登录') + ' | Qishui=' + (qishuiLogged ? '已登录' : '未登录'));
   console.log('======================================================');
 });
 

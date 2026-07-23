@@ -37,6 +37,9 @@ const NETEASE_LOGIN_URL = 'https://music.163.com/#/login';
 const QQ_LOGIN_PARTITION = 'persist:mineradio-qqmusic-login';
 const QQ_LOGIN_URL = 'https://y.qq.com/n/ryqq/profile';
 
+const QISHUI_LOGIN_PARTITION = 'persist:mineradio-qishui-login';
+const QISHUI_LOGIN_URL = 'https://music.douyin.com';
+
 const CHROMIUM_PERFORMANCE_SWITCHES = [
   ['autoplay-policy', 'no-user-gesture-required'],
   ['ignore-gpu-blocklist'],
@@ -1244,16 +1247,12 @@ ipcMain.handle('qq-music-open-login', async (event) => {
   return openQQMusicLoginWindow(getSenderWindow(event));
 });
 
-ipcMain.handle('qishui-music-open-login', async (event) => {
-  return openQishuiMusicLoginWindow(getSenderWindow(event));
-});
-
-ipcMain.handle('qq-music-open-login', async (event) => {
-  return openQQMusicLoginWindow(getSenderWindow(event));
-});
-
 ipcMain.handle('qq-music-clear-login', async () => {
   return clearQQMusicLoginSession();
+});
+
+ipcMain.handle('qishui-music-open-login', async (event) => {
+  return openQishuiMusicLoginWindow(getSenderWindow(event));
 });
 
 ipcMain.handle('qishui-music-clear-login', async () => {
@@ -1261,9 +1260,79 @@ ipcMain.handle('qishui-music-clear-login', async () => {
   return { ok: true };
 });
 
-ipcMain.handle('qq-music-clear-login', async () => {
-  return clearQQMusicLoginSession();
+// --- Qishui recommend via BrowserWindow page-context JS (bypass ByteDance anti-bot) ---
+let _qishuiBgWindow = null;
+
+async function ensureQishuiBgWindow() {
+  if (_qishuiBgWindow && !_qishuiBgWindow.isDestroyed()) return _qishuiBgWindow;
+  const { BrowserWindow } = require('electron');
+  _qishuiBgWindow = new BrowserWindow({
+    show: false,
+    width: 800, height: 600,
+    webPreferences: {
+      partition: QISHUI_LOGIN_PARTITION,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true
+    }
+  });
+  _qishuiBgWindow.setMenu(null);
+  await _qishuiBgWindow.loadURL(QISHUI_LOGIN_URL);
+  await new Promise(r => setTimeout(r, 3000));
+  return _qishuiBgWindow;
+}
+
+ipcMain.handle('qishui-fetch-recommend', async () => {
+  try {
+    const win = await ensureQishuiBgWindow();
+    const wc = win.webContents;
+    const cookie = await readQishuiLoginCookieHeader(session.fromPartition(QISHUI_LOGIN_PARTITION));
+    const loggedIn = qishuiCookieHasLogin(cookie);
+    if (!loggedIn) {
+      return { ok: false, loggedIn: false, error: 'login_required', songs: [] };
+    }
+    const jsCode = [
+      '(async () => {',
+      '  const endpoints = [',
+      "    '/api/v1/music/recommend?count=20',",
+      "    '/api/music/recommend?count=20',",
+      "    '/aweme/v1/music/recommend/?count=20',",
+      "    '/api/v1/discover/recommend?count=20',",
+      "    '/api/recommend/songs?count=20',",
+      "    '/api/v1/recommend/songs?count=20'",
+      '  ];',
+      '  for (const path of endpoints) {',
+      '    try {',
+      "      const resp = await fetch(path, { credentials: 'include', headers: { 'Accept': 'application/json' } });",
+      '      if (resp.ok) {',
+      '        const data = await resp.json();',
+      '        if (data && (data.data || data.songs || data.list || data.items || data.recommend)) {',
+      '          return { ok: true, endpoint: path, data: data };',
+      '        }',
+      '      }',
+      '    } catch (e) {}',
+      '  }',
+      '  try {',
+      "    if (window.__NEXT_DATA__) return { ok: true, source: '__NEXT_DATA__', data: window.__NEXT_DATA__ };",
+      "    if (window.__INITIAL_STATE__) return { ok: true, source: '__INITIAL_STATE__', data: window.__INITIAL_STATE__ };",
+      '  } catch (e) {}',
+      "  return { ok: false, error: 'no_working_endpoint' };",
+      '})()'
+    ].join('\n');
+    const result = await wc.executeJavaScript(jsCode, 15000);
+    return Object.assign({ ok: !!(result && result.ok), loggedIn: true, cookie: cookie }, result || {});
+  } catch (err) {
+    console.error('[QishuiFetchRecommend]', err);
+    return { ok: false, error: err.message || String(err), songs: [] };
+  }
 });
+
+ipcMain.handle('qishui-fetch-recommend-close', async () => {
+  try { if (_qishuiBgWindow && !_qishuiBgWindow.isDestroyed()) _qishuiBgWindow.destroy(); } catch(_){}
+  _qishuiBgWindow = null;
+  return { ok: true };
+});
+
 
 ipcMain.handle('mineradio-open-update-installer', async (_event, filePath) => {
   try {
